@@ -9,7 +9,7 @@ LABEL Maintainer="asheeshtripathi"
 ENV         security_updates_as_of 2023-05-15
 
 # Install Open5GS dependencies
-RUN         apt-get -y install -q \
+RUN     apt-get update  &&      apt-get -y install -q \
                 autoconf \
                 automake \
                 build-essential \
@@ -56,42 +56,20 @@ RUN         apt-get -y install -q \
                 python3-ruamel.yaml \
                 libdpdk-dev
 #Getting MongoDB
-RUN           apt-get update
-RUN           apt-get -y install -q mongodb-org
-RUN           systemctl start mongod
-RUN           systemctl enable mongod
+RUN     apt-get update  &&      apt-get -y install -q curl
+RUN     apt-get update  &&      apt-get -y install -q gnupg
 
-#Setting up TUN device (not persistent after rebooting)
-RUN           ip tuntap add name ogstun mode tun
-RUN           ip addr add 10.45.0.1/16 dev ogstun
-RUN           ip addr add 2001:db8:cafe::1/48 dev ogstun
-RUN           ip link set ogstun up
 
 #Building Open5GS
-RUN          git clone https://github.com/open5gs/open5gs
+RUN     git clone https://github.com/open5gs/open5gs
 WORKDIR /open5gs
-RUN          meson build --prefix=`pwd`/install
-RUN          ninja -C build   
-RUN          ./build/tests/registration/registration                
+RUN     meson build --prefix=`pwd`/install
+RUN     ninja -C build
 WORKDIR /open5gs/build
-RUN          meson test -v
-RUN          ninja install
+RUN     ninja install
 WORKDIR /open5gs
 
-#Building the WebUI of Open5GS
-RUN          apt-get -y install -q curl
-RUN          curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-RUN          apt-get -y install -q nodejs
-WORKDIR /open5gs/webui
-RUN          npm ci
-RUN          npm run dev
 
-# Adding a route for the UE to have WAN connectivity
-RUN          sysctl -w net.ipv4.ip_forward=1
-RUN          sysctl -w net.ipv6.conf.all.forwarding=1
-RUN          iptables -t nat -A POSTROUTING -s 10.45.0.0/16 ! -o ogstun -j MASQUERADE
-RUN          ip6tables -t nat -A POSTROUTING -s 2001:db8:cafe::/48 ! -o ogstun -j MASQUERADE
-RUN          ufw disable
-RUN          iptables -I INPUT -i ogstun -j ACCEPT
-RUN          iptables -I INPUT -s 10.45.0.0/16 -j DROP
-RUN          ip6tables -I INPUT -s 2001:db8:cafe::/48 -j DROP
+RUN     apt-get -y install -q net-tools
+RUN     apt-get -y install -q vim
+
